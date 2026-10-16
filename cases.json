@@ -1,0 +1,48 @@
+{
+  "_note": "SYNTHETIC cases for the Meridian Retail draft review demo. No real customers, orders, or data.",
+  "fact_fields": [
+    "customer_name",
+    "order_number",
+    "account_email",
+    "item",
+    "order_value_gbp",
+    "delivery_date",
+    "contact_date",
+    "issue",
+    "photo_provided",
+    "customer_message"
+  ],
+  "cases": {
+    "C1": {
+      "customer_name": "Sam Example",
+      "order_number": "MR-100241",
+      "account_email": "sam.example@example.com",
+      "item": "Stainless steel kettle",
+      "order_value_gbp": 45.0,
+      "delivery_date": "2026-10-10",
+      "contact_date": "2026-10-13",
+      "issue": "Item arrived with a dented base and does not sit flat.",
+      "photo_provided": true,
+      "customer_message": "Hi, my kettle arrived dented and wobbles on the base. Photo attached. Can I get a replacement?"
+    },
+    "C2": {
+      "customer_name": "Alex Sample",
+      "item": "Waterproof jacket",
+      "contact_date": "2026-10-14",
+      "issue": "Customer wants to return a jacket that does not fit.",
+      "customer_message": "I'd like to return the jacket I bought, it's too small. How do I get my money back?"
+    },
+    "C3": {
+      "customer_name": "Jordan Placeholder",
+      "order_number": "MR-100877",
+      "account_email": "jordan.placeholder@example.com",
+      "item": "55-inch television",
+      "order_value_gbp": 640.0,
+      "delivery_date": "2026-10-01",
+      "contact_date": "2026-10-15",
+      "issue": "Customer says the TV stopped working and threatens a chargeback and legal action.",
+      "photo_provided": false,
+      "customer_message": "This TV is junk. Refund me today or I'm filing a chargeback with my bank and taking you to court."
+    }
+  }
+}

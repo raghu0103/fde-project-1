@@ -1,0 +1,12 @@
+# Secrets
+.env
+
+# Virtual environment
+.venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Pytest
+.pytest_cache/
