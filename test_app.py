@@ -9,8 +9,8 @@ import pytest
 import app
 
 C1_GOOD = {
-    "draft_reply": "Hi Sam, sorry your kettle arrived dented. A team member will review your replacement request.",
-    "evidence_refs": ["POL-ID-01", "POL-DMG-01"],
+    "draft_reply": "Sorry your jacket zip arrived broken. We can refer this for a human return review.",
+    "evidence_refs": ["P1", "P4"],
     "missing_information": [],
     "review_status": "READY_FOR_HUMAN_REVIEW",
 }
@@ -56,16 +56,27 @@ def assert_unavailable(outcome):
 # --- Input files -------------------------------------------------------------
 
 
-def test_all_cases_load_and_use_known_fields():
-    fields = set(app.load_fact_fields())
+CASE_FIELDS = {
+    "case_id", "order_id", "product", "customer_question",
+    "delivery_date", "issue_status", "issue_details",
+}
+
+
+def test_all_cases_load_with_expected_fields():
     for case_id in app.CASE_IDS:
         case = app.load_case(case_id)
-        assert case, case_id
-        assert set(case) <= fields, case_id
+        assert set(case) == CASE_FIELDS, case_id
+        assert case["case_id"] == case_id
+        assert case["issue_status"] == "open"
+
+
+def test_c2_delivery_date_is_null():
+    assert app.load_case("C2")["delivery_date"] is None
+    assert app.load_case("C1")["delivery_date"] == "2026-09-12"
 
 
 def test_case_file_has_exactly_the_cli_cases():
-    assert set(app.load_case_file()["cases"]) == set(app.CASE_IDS)
+    assert set(app.load_case_file()) == set(app.CASE_IDS)
 
 
 def test_unknown_case_raises():
@@ -74,18 +85,18 @@ def test_unknown_case_raises():
 
 
 def test_policy_ids_parsed():
-    ids = app.policy_ids(app.load_policy())
-    assert {"POL-ID-01", "POL-RET-01", "POL-DMG-01", "POL-REF-02", "POL-ESC-01", "POL-COM-01"} == ids
+    assert app.policy_ids(app.load_policy()) == {"P1", "P2", "P3", "P4"}
 
 
 def test_prompt_includes_facts_policy_and_rules():
     case = app.load_case("C1")
-    system, user = app.build_prompt(case, app.load_policy(), app.load_fact_fields())
+    system, user = app.build_prompt(case, app.load_policy(), list(case))
     assert "only the case facts and the policy" in system
+    assert "null is missing" in system
     for field in app.RESULT_FIELDS:
         assert field in system
-    assert "MR-100241" in user
-    assert "POL-DMG-01" in user
+    assert "MR-1042" in user
+    assert "P3. If the issue record says open" in user
 
 
 # --- Successful model result -------------------------------------------------
@@ -141,7 +152,7 @@ INVALID_OUTPUTS = {
     "unknown policy id": json.dumps(_with(evidence_refs=["POL-FAKE-99"])),
     "unknown field": json.dumps(_with(review_status="NEEDS_INFORMATION", missing_information=["shoe_size"])),
     "ready with empty draft": json.dumps(_with(draft_reply="  ")),
-    "ready with missing info": json.dumps(_with(missing_information=["order_number"])),
+    "ready with missing info": json.dumps(_with(missing_information=["delivery_date"])),
     "needs info with nothing missing": json.dumps(_with(review_status="NEEDS_INFORMATION")),
 }
 
@@ -271,7 +282,7 @@ def test_non_end_turn_response_is_rejected(monkeypatch):
 def test_offline_demo_outputs_are_valid_and_labelled(case_id):
     label, result = app.load_demo_output(case_id)
     assert "SYNTHETIC" in label
-    app.validate_result(result, app.policy_ids(app.load_policy()), app.load_fact_fields())
+    app.validate_result(result, app.policy_ids(app.load_policy()), list(app.load_case(case_id)))
 
     outcome = app.run_case(case_id, model_fn=must_not_be_called, offline_demo=True)
     assert outcome["source"] == "offline_demo"
@@ -279,9 +290,22 @@ def test_offline_demo_outputs_are_valid_and_labelled(case_id):
     assert app.NO_API_LINE in outcome["notes"]
 
 
-def test_offline_demo_statuses_cover_each_status():
-    statuses = {app.load_demo_output(c)[1]["review_status"] for c in app.CASE_IDS}
-    assert statuses == set(app.REVIEW_STATUSES)
+def test_offline_demo_expected_statuses():
+    statuses = {c: app.load_demo_output(c)[1]["review_status"] for c in app.CASE_IDS}
+    assert statuses == {
+        "C1": "READY_FOR_HUMAN_REVIEW",
+        "C2": "NEEDS_INFORMATION",
+        "C3": "READY_FOR_HUMAN_REVIEW",
+    }
+    assert app.load_demo_output("C2")[1]["missing_information"] == ["delivery_date"]
+
+
+def test_offline_demo_c3_does_not_claim_resolved():
+    # P3: the issue is open, so the draft must not say it is resolved.
+    draft = app.load_demo_output("C3")[1]["draft_reply"].lower()
+    assert "can't confirm that your issue is resolved" in draft
+    assert "still under review" in draft
+    assert "has been resolved" not in draft
 
 
 def test_offline_demo_prints_no_api_line(capsys):
@@ -289,4 +313,5 @@ def test_offline_demo_prints_no_api_line(capsys):
     out = capsys.readouterr().out
     assert "OFFLINE DEMO: no model API was called." in out
     assert "NEEDS_INFORMATION" in out
-    assert "order_number" in out
+    assert "delivery_date: null (missing)" in out
+    assert "missing_information: delivery_date" in out

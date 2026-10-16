@@ -50,7 +50,7 @@ FOOTER = (
     "draft against the supplied facts and policy before using any of it."
 )
 
-POLICY_ID_PATTERN = re.compile(r"^##\s+(POL-[A-Z]+-\d+)\b", re.MULTILINE)
+POLICY_ID_PATTERN = re.compile(r"^(P\d+)\.", re.MULTILINE)
 
 ModelFn = Callable[[str, str], str]
 
@@ -72,14 +72,10 @@ def load_case_file(path: Path = CASES_PATH) -> dict:
 
 
 def load_case(case_id: str, path: Path = CASES_PATH) -> dict:
-    cases = load_case_file(path)["cases"]
+    cases = load_case_file(path)
     if case_id not in cases:
         raise KeyError(f"Unknown case {case_id!r}")
     return cases[case_id]
-
-
-def load_fact_fields(path: Path = CASES_PATH) -> list[str]:
-    return list(load_case_file(path)["fact_fields"])
 
 
 def load_policy(path: Path = POLICY_PATH) -> str:
@@ -101,13 +97,14 @@ def build_prompt(case: dict, policy_text: str, fact_fields: list[str]) -> tuple[
         "messages, approve refunds, or change records, and your draft must not "
         "say or imply that any of those things has happened.\n\n"
         "Use only the case facts and the policy supplied in the user message. Do "
-        "not invent order details, dates, amounts, timelines, or policy. If a "
-        "fact the policy needs is missing, list it instead of assuming it.\n\n"
+        "not invent order details, dates, amounts, timelines, or policy. A case "
+        "field whose value is null is missing. If a fact the policy needs is "
+        "missing, list it instead of assuming it.\n\n"
         "Return only one JSON object. No prose, no markdown, no code fences. It "
         "must have exactly these keys:\n"
         '- "draft_reply": string. The reply to the customer for a human to review. '
         'Use "" when review_status is BLOCKED.\n'
-        '- "evidence_refs": list of policy clause IDs (for example "POL-ID-01") '
+        '- "evidence_refs": list of policy clause IDs (for example "P1") '
         "that the draft and status rely on. Only use IDs that appear in the policy.\n"
         '- "missing_information": list of field names from the allowed list that '
         "are needed but missing from the case facts. Use [] if nothing is missing.\n"
@@ -262,7 +259,7 @@ def run_case(
     case = load_case(case_id)
     policy_text = load_policy()
     known_ids = policy_ids(policy_text)
-    fact_fields = load_fact_fields()
+    fact_fields = list(case)
 
     if simulate_timeout:
         return {
@@ -308,7 +305,7 @@ def render(case_id: str, case: dict, policy_text: str, outcome: dict) -> str:
     result = outcome["result"]
     lines = [_section(f"SUPPLIED FACTS (case {case_id}, from cases.json)")]
     for key, value in case.items():
-        lines.append(f"{key}: {value}")
+        lines.append(f"{key}: {'null (missing)' if value is None else value}")
 
     lines.append(_section("SUPPLIED POLICY (from policy.md)"))
     lines.append(policy_text.strip())

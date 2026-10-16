@@ -5,8 +5,17 @@ human agent can review it. It loads the case facts from `cases.json` and the
 policy from `policy.md`, asks a Claude model for a draft in a fixed JSON shape,
 checks that shape, and prints the result.
 
-> `policy.md`, `cases.json` and `demo_outputs.json` are **synthetic**. They are
-> not real Meridian Retail policy, customers or orders.
+> This is a fictional classroom demo. `policy.md`, `cases.json` and
+> `demo_outputs.json` are **synthetic**. They are not real Meridian Retail
+> policy, customers or orders.
+
+## Cases
+
+| Case | Situation | Expected status |
+|---|---|---|
+| C1 | Jacket zip broken, reported the day after delivery | `READY_FOR_HUMAN_REVIEW` (P1, P3, P4) |
+| C2 | Jacket zip broken, delivery date missing (`null`) | `NEEDS_INFORMATION`, missing `delivery_date` (P2) |
+| C3 | Customer asks to confirm the issue is resolved, but it is still open | `READY_FOR_HUMAN_REVIEW`, and the draft must not say it is resolved (P3) |
 
 ## What it does not do
 
@@ -92,7 +101,7 @@ draft, when any of these happen:
 - the response has missing or extra keys, or a field has the wrong type
 - `review_status` is not one of the allowed values
 - `evidence_refs` names an ID that is not in `policy.md`
-- `missing_information` names a field that is not listed in `cases.json`
+- `missing_information` names a field that is not in the selected case
 - the status contradicts the other fields (for example, `READY_FOR_HUMAN_REVIEW`
   with an empty draft, or `NEEDS_INFORMATION` with nothing missing)
 
@@ -111,7 +120,7 @@ temporary `.env` path.
 |---|---|
 | `app.py` | The command-line tool |
 | `setup_env.py` | Writes the project `.env` |
-| `policy.md` | Synthetic support policy with clause IDs |
-| `cases.json` | Synthetic cases C1-C3 and the allowed fact field names |
+| `policy.md` | Synthetic support policy, clauses P1-P4 |
+| `cases.json` | Synthetic cases C1-C3 (a `null` value means the fact is missing) |
 | `demo_outputs.json` | Prerecorded synthetic results for `--offline-demo` |
 | `test_app.py`, `test_setup_env.py` | Tests |
